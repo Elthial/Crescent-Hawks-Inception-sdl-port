@@ -145,7 +145,7 @@ int main(int argc,char **argv)
         SDL_TimerID timer,inputTimer;
         /* Installed-mode drive state is automatic. Accelerated retraces are a
          * host test setting, NOT timing parity. */
-        SDLBackend_RetracesPerSecond=70;
+        SDLBackend_RetracesPerSecond=EntryProbeHostRetracesPerSecond;
         explorationProbe=(unsigned)(strcmp(argv[1],"exploration")==0);
         nativeQuitProbe=(unsigned)(strcmp(argv[1],"settings-quit")==0);
         gameplayProbe=(unsigned)(strcmp(argv[1],"new-game")==0 || explorationProbe || nativeQuitProbe);

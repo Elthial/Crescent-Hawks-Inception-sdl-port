@@ -98,7 +98,7 @@ static void loadCombatAssets(void)
 {
     SDL_TimerID timer,inputTimer;
     uint32_t savedRetraceRate=SDLBackend_RetracesPerSecond;
-    SDLBackend_RetracesPerSecond=70;
+    SDLBackend_RetracesPerSecond=1000;
     SDL_SetAtomicInt(&assetStartupInputPulses,20);
     inputTimer=SDL_AddTimer(5,requestAssetStartupInput,NULL); check(inputTimer!=0);
     timer=SDL_AddTimer(10,requestAssetMilestone,NULL); check(timer!=0);
