@@ -39,6 +39,31 @@ to remain portable, but other host platforms are not release-qualified.
 
 ## Quick start
 
+### Linux with Nix
+
+Requires Nix with flakes enabled and a legally obtained original game installation.
+Set `CHI_ORIGINAL_ASSET_DIRECTORY` to that installation, then run:
+
+```sh
+nix run .
+```
+
+On first launch, the launcher copies game data into
+`${XDG_DATA_HOME:-$HOME/.local/share}/crescent-hawks-inception`. Saves remain
+there across rebuilds. `CHI_ASSET_DIRECTORY` overrides this writable play
+directory; do not point it at the originals. No game data is bundled.
+
+Use `nix build` to build, `nix develop` for a CMake/SDL3 shell, and
+`nix flake check` for asset-independent tests. `nix run .#integration-tests`
+requires `CHI_ORIGINAL_ASSET_DIRECTORY` and tests a temporary copy of the data.
+Pass CTest arguments after `--`; set `CHI_KEEP_TEST_DIRECTORY=1` to keep the
+build and copied data for debugging.
+
+Dependencies are pinned; CMake dependency fetching is disabled.
+See [Linux test status](docs/LINUX_VALIDATION.md) for validation limits.
+
+### Windows
+
 Requirements are Windows, PowerShell, Visual Studio C/C++ build tools and a
 legally obtained original game installation. CMake/Ninja are taken from Visual
 Studio; SDL3 is fetched at its pinned checksum unless supplied explicitly.
