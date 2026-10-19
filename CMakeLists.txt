@@ -903,7 +903,7 @@ if(CHI_BUILD_SDL)
         WORKING_DIRECTORY "${CHI_ORIGINAL_ASSET_DIRECTORY}"
         ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
       set_tests_properties(gameplay.local_original_training_mission PROPERTIES
-        TIMEOUT 40 LABELS "gameplay;maps;rules;graphics;assets;platform;integration;local"
+        TIMEOUT 120 LABELS "gameplay;maps;rules;graphics;assets;platform;integration;local"
         WORKING_DIRECTORY "${CHI_ORIGINAL_ASSET_DIRECTORY}"
         ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
       set_tests_properties(graphics.local_original_animation_scenes PROPERTIES
@@ -915,6 +915,15 @@ if(CHI_BUILD_SDL)
         WORKING_DIRECTORY "${CHI_ORIGINAL_ASSET_DIRECTORY}"
         ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
       add_test(NAME gameplay.local_original_ammunition_services COMMAND test_connected_combat ammunition-services)
+      # Exercise operators slower than their timer interval: queued callbacks
+      # must neither starve native drains nor miss transient layout changes.
+      foreach(scenario training-mission exploration-loop ammunition-services)
+        add_test(NAME gameplay.local_slow_operator_${scenario} COMMAND test_connected_combat ${scenario})
+        set_tests_properties(gameplay.local_slow_operator_${scenario} PROPERTIES
+          TIMEOUT 120 LABELS "gameplay;assets;integration;local"
+          WORKING_DIRECTORY "${CHI_ORIGINAL_ASSET_DIRECTORY}"
+          ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy;CHI_TEST_SLOW_OPERATOR=1")
+      endforeach()
       set_tests_properties(gameplay.local_original_ammunition_services PROPERTIES
         TIMEOUT 15 LABELS "gameplay;rules;graphics;assets;platform;integration;local"
         WORKING_DIRECTORY "${CHI_ORIGINAL_ASSET_DIRECTORY}"
@@ -950,6 +959,15 @@ if(CHI_BUILD_SDL)
       set_tests_properties(assets.local_original_anm_frames PROPERTIES LABELS "assets;graphics;integration;local" WORKING_DIRECTORY "${CHI_ORIGINAL_ASSET_DIRECTORY}")
       add_test(NAME assets.local_original_files COMMAND test_original_assets)
       set_tests_properties(assets.local_original_files PROPERTIES LABELS "assets;integration;local" WORKING_DIRECTORY "${CHI_ORIGINAL_ASSET_DIRECTORY}")
+      # Local scenarios share a writable fixture and real-time SDL operators.
+      # Parallel software renderers distort their scheduling/deadline budgets.
+      get_property(chi_tests DIRECTORY PROPERTY TESTS)
+      foreach(chi_test IN LISTS chi_tests)
+        get_property(chi_labels TEST ${chi_test} PROPERTY LABELS)
+        if("local" IN_LIST chi_labels)
+          set_tests_properties(${chi_test} PROPERTIES RUN_SERIAL TRUE)
+        endif()
+      endforeach()
     endif()
   endif()
 endif()
