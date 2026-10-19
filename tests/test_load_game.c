@@ -57,7 +57,7 @@ static void testRoundtrip(void)
     roundtrip=1; missing=retries=0;
     for(slot=0;slot<6;++slot) for(unsigned seed=0;seed<256;++seed) {
         for(unsigned index=0;index<sizeof state;++index) state[index]=(uint8_t)(seed+index*37);
-        state[0xD34E-0xC614]=0; /* saving only prohibited in the map room */
+        state[0xD34E - 0xC614]=0; /* saving only prohibited in the map room */
         state[0xD346-0xC614]=0; /* world reconstruction boundary */
         memcpy(OriginalSavedState.bytes,state,sizeof state);
         CrescentHawkMapPositionX=0x0C35; CrescentHawkMapPositionY=0xC047;
@@ -95,7 +95,7 @@ int main(int argc,char **argv)
         memset(state,0x5A,sizeof state);
         state[0xD346-0xC614]=(uint8_t)(flags&1);
         state[0xD310-0xC614]=(uint8_t)(flags&2);
-        state[0xD33E-0xC614]=(uint8_t)(flags&4);
+        state[0xD33E - 0xC614]=(uint8_t)(flags&4);
         state[0xD35B-0xC614]=(uint8_t)marker;
         for(unsigned mech=0;mech<4;++mech) state[0x110+mech*125]=(uint8_t)(mech==0?'L':'W');
         memcpy(OriginalSavedState.bytes,state,sizeof state);
