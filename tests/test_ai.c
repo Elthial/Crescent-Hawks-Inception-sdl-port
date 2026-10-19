@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-uint8_t CombatantActionState[Enemy_All_CombatantId_Range_First];
+extern uint8_t CombatantActionState[Enemy_All_CombatantId_Range_First];
 static uint16_t clearPath,pathTarget,pathActor,plannedActor,budget;
 static unsigned mapMoves,pathCalls,plans,previews;
 static void checkLine(int value,unsigned line) { if(!value) { fprintf(stderr,"Combat AI mismatch line%u\n",line); exit(1); } }
