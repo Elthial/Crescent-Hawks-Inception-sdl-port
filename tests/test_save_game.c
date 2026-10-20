@@ -63,7 +63,7 @@ static void reset(void)
     opens=requests=closes=writes=keys=panels=topDraws=exitStage=imageSize=0;
     for(unsigned index=0;index<sizeof original;++index) original[index]=(uint8_t)(index*31+7);
     memcpy(OriginalSavedState.bytes,original,sizeof original);
-    CacheMapRoomLoaded=0; original[0xD34E-0xC614]=0;
+    CacheMapRoomLoaded=0; original[0xD34E - 0xC614]=0;
     CrescentHawkMapPositionX=0x0C35; CrescentHawkMapPositionY=0xC047;
     memcpy(SaveGameFileName,"Game0",6);
 }

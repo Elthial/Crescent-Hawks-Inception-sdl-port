@@ -13,6 +13,11 @@ static void verify(int condition,unsigned line)
 }
 #define check(condition) verify(!!(condition),__LINE__)
 static unsigned renderedCombat,assetsReady;
+/* Timers may enqueue several main-thread callbacks before the game pumps
+ * events. Leave a quiet interval after each operator batch so the original
+ * input drains can empty; timer callbacks are not consumed user input. */
+static uint64_t nextTrainingInput,nextExplorationInput,nextAmmunitionInput;
+enum { OperatorQuietMilliseconds=50 };
 static SDL_AtomicInt assetStartupInputPulses;
 static const char *statisticsPreviewPath;
 static const char *existingSaveName;
@@ -98,7 +103,7 @@ static void loadCombatAssets(void)
 {
     SDL_TimerID timer,inputTimer;
     uint32_t savedRetraceRate=SDLBackend_RetracesPerSecond;
-    SDLBackend_RetracesPerSecond=70;
+    SDLBackend_RetracesPerSecond=1000;
     SDL_SetAtomicInt(&assetStartupInputPulses,20);
     inputTimer=SDL_AddTimer(5,requestAssetStartupInput,NULL); check(inputTimer!=0);
     timer=SDL_AddTimer(10,requestAssetMilestone,NULL); check(timer!=0);
@@ -164,19 +169,10 @@ static void SDLCALL operateTrainingMission(void *unused)
     SDL_Event key;
     uint16_t x=CrescentHawkMapPositionX,y=CrescentHawkMapPositionY;
     (void)unused; check(SDL_IsMainThread());
-    /* The scripted operator must not flood unconsumed movement keys while
-     * original synchronous sound is playing; it is not a live-input count. */
-    if(SDLBackend_SoundEffectActive()) return;
-    if(x<TrainingMarchEndX && !trainingReturning && y==TrainingMarchY) return;
-    /* Callback count is a host scheduling budget, not consumed game input.
-     * Allow the measured Debug return march after the observed idle updates;
-     * CTest separately bounds the whole scenario to40 seconds. */
-    if(++trainingInputs>=3000) {
-        fprintf(stderr,"Training operator stalled at %04X/%04X, returning=%u\n",x,y,trainingReturning);
-        exit(1);
-    }
-    if(x>=TrainingSoutheastX && y>=TrainingSoutheastY) trainingReturning=1;
-    memset(&key,0,sizeof key); key.type=SDL_EVENT_KEY_DOWN;
+    /* Observe progress on every callback, including the input quiet interval.
+     * Sampling this modulo-four phase only when posting keys can repeatedly
+     * miss whole wraps and stall the late-return test on Linux. Missed wraps
+     * still only undercount: posted keys are never counted as world updates. */
     if(!trainingReturning && x==TrainingMarchEndX && y==TrainingMarchY && trainingDelayUpdates) {
         unsigned phase=MissionNpcUpdatePhase&MissionNpcUpdatePhaseMask;
         if(trainingDelayStarted) {
@@ -184,6 +180,24 @@ static void SDLCALL operateTrainingMission(void *unused)
             trainingDelayUpdates=updates<trainingDelayUpdates?trainingDelayUpdates-updates:0;
         }
         trainingDelayStarted=1; trainingDelayPhase=phase;
+    }
+    /* The scripted operator must not flood unconsumed movement keys while
+     * original synchronous sound is playing; it is not a live-input count. */
+    if(SDLBackend_SoundEffectActive()) return;
+    if(SDL_GetTicks()<nextTrainingInput) return;
+    if(getenv("CHI_TEST_SLOW_OPERATOR")) SDL_Delay(12);
+    nextTrainingInput=SDL_GetTicks()+OperatorQuietMilliseconds;
+    if(x<TrainingMarchEndX && !trainingReturning && y==TrainingMarchY) return;
+    /* Callback count is a host scheduling budget, not consumed game input.
+     * Allow the measured Debug return march after the observed idle updates;
+     * CTest separately bounds the paced scenario to40 seconds. */
+    if(++trainingInputs>=3000) {
+        fprintf(stderr,"Training operator stalled at %04X/%04X, returning=%u\n",x,y,trainingReturning);
+        exit(1);
+    }
+    if(x>=TrainingSoutheastX && y>=TrainingSoutheastY) trainingReturning=1;
+    memset(&key,0,sizeof key); key.type=SDL_EVENT_KEY_DOWN;
+    if(!trainingReturning && x==TrainingMarchEndX && y==TrainingMarchY && trainingDelayUpdates) {
         key.key.key=SDLK_RETURN;
     } else if(!trainingReturning) key.key.key=x<TrainingSoutheastX?SDLK_D:SDLK_X;
     /* Return through the east-side hangar approach, not its south wall. */
@@ -195,7 +209,7 @@ static void SDLCALL operateTrainingMission(void *unused)
 static Uint32 SDLCALL requestTrainingInput(void *unused,SDL_TimerID timer,Uint32 interval)
 {
     (void)unused; (void)timer;
-    SDL_RunOnMainThread(operateTrainingMission,NULL,false);
+    check(SDL_RunOnMainThread(operateTrainingMission,NULL,false));
     return interval;
 }
 static void runTrainingMission(void)
@@ -231,11 +245,15 @@ static void runTrainingMission(void)
     puts("Connected training: original map, Locust march, southeast objective, late failure and return completed.");
 }
 static unsigned explorationInputActive,explorationPhase,explorationCallbacks,explorationPauseSeen,explorationResumeSeen;
+static uint8_t explorationFinanceAtPause;
 static void SDLCALL operateExploration(void *unused)
 {
     SDL_Event event;
     (void)unused; check(SDL_IsMainThread());
     if(!explorationInputActive) return;
+    if(SDL_GetTicks()<nextExplorationInput) return;
+    if(getenv("CHI_TEST_SLOW_OPERATOR")) SDL_Delay(12);
+    nextExplorationInput=SDL_GetTicks()+OperatorQuietMilliseconds;
     check(++explorationCallbacks<2000);
     memset(&event,0,sizeof event); event.type=SDL_EVENT_KEY_DOWN;
     if(explorationPhase==0) {
@@ -249,8 +267,11 @@ static void SDLCALL operateExploration(void *unused)
         check(MenuControls[PauseMenuPanel].optionCount==PauseMenuBaseChoices);
         check(MenuControls[PauseMenuPanel].selection==0);
         explorationPauseSeen=1; explorationPhase=2; event.key.key=SDLK_RETURN;
+        explorationFinanceAtPause=ComstarFinanceCountdown;
     } else {
-        if(CurrentMenuLayoutIndex==4) {
+        /* Sidebar drawing changes layout to1 after return. Layout4 is only
+         * transient; a completed parent world tick proves actual resumption. */
+        if(ComstarFinanceCountdown!=explorationFinanceAtPause) {
             explorationResumeSeen=1; event.type=SDL_EVENT_QUIT;
         } else event.key.key=SDLK_RETURN; /* After the original menu's input drain. */
     }
@@ -259,7 +280,7 @@ static void SDLCALL operateExploration(void *unused)
 static Uint32 SDLCALL requestExplorationInput(void *unused,SDL_TimerID timer,Uint32 interval)
 {
     (void)unused; (void)timer;
-    SDL_RunOnMainThread(operateExploration,NULL,false);
+    check(SDL_RunOnMainThread(operateExploration,NULL,false));
     return interval;
 }
 static void enterExploration(void) { Main_Game_Loop(FALSE); }
@@ -456,16 +477,19 @@ static void SDLCALL enterAmmunitionRequest(void *unused)
     SDL_Event key;
     (void)unused; check(SDL_IsMainThread());
     memset(&key,0,sizeof key); key.type=SDL_EVENT_KEY_DOWN;
+    if(SDL_GetTicks()<nextAmmunitionInput) return;
+    if(getenv("CHI_TEST_SLOW_OPERATOR")) SDL_Delay(22);
     if(!ammunitionInputSent && strcmp((char *)DynamicString,"0")==0) {
         key.key.key=(SDL_Keycode)('0'+ammunitionRequest);
         check(SDL_PushEvent(&key)); ammunitionInputSent=1;
     }
     key.key.key=SDLK_RETURN; check(SDL_PushEvent(&key));
+    nextAmmunitionInput=SDL_GetTicks()+OperatorQuietMilliseconds;
 }
 static Uint32 SDLCALL requestAmmunitionInput(void *unused,SDL_TimerID timer,Uint32 interval)
 {
     (void)unused; (void)timer;
-    SDL_RunOnMainThread(enterAmmunitionRequest,NULL,false);
+    check(SDL_RunOnMainThread(enterAmmunitionRequest,NULL,false));
     return interval;
 }
 static void runAmmunitionServices(void)

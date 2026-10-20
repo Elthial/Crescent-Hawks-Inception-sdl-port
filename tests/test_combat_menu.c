@@ -4,7 +4,7 @@
 #include <string.h>
 /* Test-only dispatch boundaries. Original planning-menu body executes;
  * callee internals are covered separately, not claimed as integrated here. */
-uint8_t CombatantActionState[Enemy_All_CombatantId_Range_First];
+extern uint8_t CombatantActionState[Enemy_All_CombatantId_Range_First];
 static uint16_t choices[16],selectedIds[16],defaults[16],optionCounts[16],movementModes[16];
 static unsigned count,index,descriptions,previews,clearPreviews,aiCalls,moves,kicks,weapons,scans,drains;
 static uint16_t currentId;

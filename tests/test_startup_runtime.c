@@ -40,7 +40,9 @@ static unsigned milestoneSeen;
 static SDL_AtomicInt startupInputPulses;
 static unsigned gameplayProbe,gameplayEntered;
 static unsigned explorationProbe,movementQueued,explorationObserved;
+static uint64_t nextMovementPulse;
 static unsigned nativeQuitProbe,pauseQueued;
+static unsigned pauseMenuObserved;
 static uint16_t startingNpcX,startingNpcY;
 enum { ExplorationLowerPanel=4, EntryProbeHostRetracesPerSecond=1000 };
 static void SDLCALL checkStartupMilestone(void *unused)
@@ -51,11 +53,12 @@ static void SDLCALL checkStartupMilestone(void *unused)
         if(!gameplayProbe || CurrentMap!=Map_Citadel) return;
         if(gameplayEntered) {
             if(nativeQuitProbe) {
-                if(!pauseQueued && CurrentMenuLayoutIndex==ExplorationLowerPanel) {
+                if(!pauseMenuObserved && CurrentMenuLayoutIndex==ExplorationLowerPanel) {
                     check(MenuControls[PauseMenuPanel].selection==0);
                     check(MenuControls[GameSettingsMenu].selection==0);
                     pauseQueued=1; queueKey(SDLK_SPACE,SDL_SCANCODE_SPACE);
-                } else if(pauseQueued && CurrentMenuLayoutIndex==PauseMenuPanel && !ExitMainLoop) {
+                } else if(CurrentMenuLayoutIndex==PauseMenuPanel && !ExitMainLoop) {
+                    pauseQueued=pauseMenuObserved=1;
                     /* Original menus commit selection only on confirmation.
                      * Observe that result, then navigate the next real menu.
                      * No direct selection writes or menu-method doubles. */
@@ -70,8 +73,13 @@ static void SDLCALL checkStartupMilestone(void *unused)
                 return;
             }
             if(!explorationProbe) return;
-            if(!movementQueued && CurrentMenuLayoutIndex==ExplorationLowerPanel) {
+            /* Layout4 can be observed during scene15, before its input drain.
+             * Retry a swallowed pulse until actual movement acknowledges it. */
+            if(CrescentHawkMapPositionY==CitadelStartingPositionY
+                && CurrentMenuLayoutIndex==ExplorationLowerPanel
+                && SDL_GetTicks()>=nextMovementPulse) {
                 movementQueued=1;
+                nextMovementPulse=SDL_GetTicks()+50;
                 queueKey(SDLK_X,SDL_SCANCODE_X); /* original south movement */
             }
             if(movementQueued && CrescentHawkMapPositionY!=CitadelStartingPositionY
@@ -116,12 +124,16 @@ static Uint32 SDLCALL requestMilestoneCheck(void *unused,SDL_TimerID timer,Uint3
     check(SDL_RunOnMainThread(checkStartupMilestone,NULL,false));
     return interval;
 }
+static void SDLCALL pulseStartupInput(void *unused)
+{
+    (void)unused;
+    /* A delayed timer pulse must not become a gameplay SPACE/pause command. */
+    if(!milestoneSeen) queueKey(SDLK_SPACE,SDL_SCANCODE_SPACE);
+}
 static Uint32 SDLCALL requestStartupInput(void *unused,SDL_TimerID timer,Uint32 interval)
 {
-    SDL_Event key={0};
-    (void)unused; (void)timer; (void)interval;
-    key.type=SDL_EVENT_KEY_DOWN; key.key.key=SDLK_SPACE; key.key.scancode=SDL_SCANCODE_SPACE;
-    check(SDL_PushEvent(&key));
+    (void)unused; (void)timer;
+    check(SDL_RunOnMainThread(pulseStartupInput,NULL,false));
     return SDL_AddAtomicInt(&startupInputPulses,-1)>1?interval:0;
 }
 static void releaseStartupAssets(void)
@@ -145,7 +157,7 @@ int main(int argc,char **argv)
         SDL_TimerID timer,inputTimer;
         /* Installed-mode drive state is automatic. Accelerated retraces are a
          * host test setting, NOT timing parity. */
-        SDLBackend_RetracesPerSecond=70;
+        SDLBackend_RetracesPerSecond=EntryProbeHostRetracesPerSecond;
         explorationProbe=(unsigned)(strcmp(argv[1],"exploration")==0);
         nativeQuitProbe=(unsigned)(strcmp(argv[1],"settings-quit")==0);
         gameplayProbe=(unsigned)(strcmp(argv[1],"new-game")==0 || explorationProbe || nativeQuitProbe);
