@@ -732,7 +732,7 @@ if(CHI_BUILD_SDL)
     COMMAND ${CMAKE_COMMAND} -E rm -rf "${CMAKE_CURRENT_BINARY_DIR}/package"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/package"
     COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:CrescentHawksInception>"
-      "${CMAKE_CURRENT_BINARY_DIR}/package/CrescentHawksInception.exe"
+      "${CMAKE_CURRENT_BINARY_DIR}/package/$<TARGET_FILE_NAME:CrescentHawksInception>"
     COMMAND ${CMAKE_COMMAND} -E copy
       "${CMAKE_CURRENT_SOURCE_DIR}/config/CrescentHawksInception.ini"
       "${CMAKE_CURRENT_BINARY_DIR}/package/CrescentHawksInception.ini"

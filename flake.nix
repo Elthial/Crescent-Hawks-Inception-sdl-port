@@ -13,7 +13,7 @@
           pkgs = import nixpkgs { inherit system; };
           runtime = pkgs.stdenv.mkDerivation {
             pname = "crescent-hawks-inception-runtime";
-            version = "1.0.0";
+            version = builtins.replaceStrings [ "\r" "\n" ] [ "" "" ] (builtins.readFile ./VERSION);
             src = self;
             nativeBuildInputs = [ pkgs.cmake pkgs.ninja ];
             buildInputs = [ pkgs.sdl3 ];

@@ -1,6 +1,6 @@
 # Third-party notices
 
-The playable Windows package statically links SDL 3.4.16. SDL is distributed
+The downloadable Windows and Linux packages statically link SDL 3.4.16. SDL is distributed
 under the zlib license below; it is not relicensed by this project.
 
 CMake, Ninja, PowerShell and the Microsoft C/C++ toolchain are build tools and

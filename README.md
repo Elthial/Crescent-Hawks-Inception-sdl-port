@@ -18,16 +18,20 @@ remains in the reconstructed procedure chain.
 
 ## Current status
 
-Version 1.0 is supported and tested only on 64-bit Windows. The code is intended
-to remain portable, but other host platforms are not release-qualified.
+Version 1.1 provides Windows x64 and Linux x86-64 downloads. The Linux binary
+targets Ubuntu 24.04 or compatible systems with glibc 2.39 or newer and an
+X11 or Wayland desktop. Other Linux distributions and aarch64 are not
+release-qualified.
+See [version 1.1 validation](docs/RELEASE_1_1_VALIDATION.md) for build, test and
+download smoke-test results.
 
 - The reconstructed source is divided between original logic in
   `src/Original` and platform replacements in `src/SDL`.
 - The real entry point reaches the original `Setup_Game` procedure; production
   builds do not substitute a test bootstrap or replacement game loop.
-- The clean v1.0 Release runs pass 117 asset-independent headless tests and 148
-  SDL tests without private game data. Supplying a legal original installation
-  enables 15 additional local asset-integration tests (163 total).
+- The test suites contain 117 asset-independent headless tests and 148 SDL
+  tests without private game data. Supplying a legal original installation
+  enables 19 additional local asset-integration tests (167 total).
 - Original title, map, exploration, menus, services, training, combat,
   save/load and shutdown paths have connected coverage.
 - A complete manual playthrough and exact presentation/audio fidelity remain
@@ -38,6 +42,20 @@ to remain portable, but other host platforms are not release-qualified.
 </p>
 
 ## Quick start
+
+### Release downloads
+
+Download the Windows x64 ZIP or Linux x86-64 tarball from
+[Releases](https://github.com/Elthial/Crescent-Hawks-Inception-sdl-port/releases).
+Extract the two runtime files into a writable **copy** of your legally obtained
+original game installation. Run `CrescentHawksInception.exe` on Windows or
+`./CrescentHawksInception` on Linux. Saves are written to that copied directory.
+Linux filenames are case-sensitive; retain the original uppercase data filenames.
+
+Both downloads statically link SDL3 and contain no original game data.
+The Linux download does not require Nix. It uses system display/audio drivers;
+Ubuntu desktop normally supplies these, while WSL requires WSLg.
+`CHI_ASSET_DIRECTORY` can instead select another writable copy of the data.
 
 ### Linux with Nix
 
@@ -106,11 +124,26 @@ CrescentHawksInception.ini
 ```
 
 SDL3 is linked statically. The package contains no copyrighted game data.
-`build-release/CrescentHawksInception-1.0.0-SHA256SUMS.txt` records the SHA-256
+`build-release/CrescentHawksInception-1.1.0-SHA256SUMS.txt` records the SHA-256
 of both package files and is intentionally kept beside the package directory.
 With `asset_directory=.`, both files may be copied into an original game
 installation. A relative or absolute path may instead keep program and data
 separate. `CHI_ASSET_DIRECTORY` overrides the file for launchers and tests.
+
+For the Linux download, build on Ubuntu 24.04 with the SDL Linux build
+dependencies installed:
+
+```sh
+cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DBUILD_TESTING=ON -DCHI_WARNINGS_AS_ERRORS=OFF \
+  -DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON
+cmake --build build-release
+ctest --test-dir build-release --output-on-failure --parallel 1
+cmake --build build-release --target inception-package
+```
+
+This uses the checksum-pinned SDL3 source and links it statically. The Linux
+package contains `CrescentHawksInception` and `CrescentHawksInception.ini`.
 
 ## Repository map
 
