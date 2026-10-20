@@ -169,6 +169,18 @@ static void SDLCALL operateTrainingMission(void *unused)
     SDL_Event key;
     uint16_t x=CrescentHawkMapPositionX,y=CrescentHawkMapPositionY;
     (void)unused; check(SDL_IsMainThread());
+    /* Observe progress on every callback, including the input quiet interval.
+     * Sampling this modulo-four phase only when posting keys can repeatedly
+     * miss whole wraps and stall the late-return test on Linux. Missed wraps
+     * still only undercount: posted keys are never counted as world updates. */
+    if(!trainingReturning && x==TrainingMarchEndX && y==TrainingMarchY && trainingDelayUpdates) {
+        unsigned phase=MissionNpcUpdatePhase&MissionNpcUpdatePhaseMask;
+        if(trainingDelayStarted) {
+            unsigned updates=(phase-trainingDelayPhase)&MissionNpcUpdatePhaseMask;
+            trainingDelayUpdates=updates<trainingDelayUpdates?trainingDelayUpdates-updates:0;
+        }
+        trainingDelayStarted=1; trainingDelayPhase=phase;
+    }
     /* The scripted operator must not flood unconsumed movement keys while
      * original synchronous sound is playing; it is not a live-input count. */
     if(SDLBackend_SoundEffectActive()) return;
@@ -178,7 +190,7 @@ static void SDLCALL operateTrainingMission(void *unused)
     if(x<TrainingMarchEndX && !trainingReturning && y==TrainingMarchY) return;
     /* Callback count is a host scheduling budget, not consumed game input.
      * Allow the measured Debug return march after the observed idle updates;
-     * CTest separately bounds the paced scenario to120 seconds. */
+     * CTest separately bounds the paced scenario to40 seconds. */
     if(++trainingInputs>=3000) {
         fprintf(stderr,"Training operator stalled at %04X/%04X, returning=%u\n",x,y,trainingReturning);
         exit(1);
@@ -186,12 +198,6 @@ static void SDLCALL operateTrainingMission(void *unused)
     if(x>=TrainingSoutheastX && y>=TrainingSoutheastY) trainingReturning=1;
     memset(&key,0,sizeof key); key.type=SDL_EVENT_KEY_DOWN;
     if(!trainingReturning && x==TrainingMarchEndX && y==TrainingMarchY && trainingDelayUpdates) {
-        unsigned phase=MissionNpcUpdatePhase&MissionNpcUpdatePhaseMask;
-        if(trainingDelayStarted) {
-            unsigned updates=(phase-trainingDelayPhase)&MissionNpcUpdatePhaseMask;
-            trainingDelayUpdates=updates<trainingDelayUpdates?trainingDelayUpdates-updates:0;
-        }
-        trainingDelayStarted=1; trainingDelayPhase=phase;
         key.key.key=SDLK_RETURN;
     } else if(!trainingReturning) key.key.key=x<TrainingSoutheastX?SDLK_D:SDLK_X;
     /* Return through the east-side hangar approach, not its south wall. */

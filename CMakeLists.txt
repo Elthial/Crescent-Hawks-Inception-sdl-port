@@ -903,7 +903,7 @@ if(CHI_BUILD_SDL)
         WORKING_DIRECTORY "${CHI_ORIGINAL_ASSET_DIRECTORY}"
         ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
       set_tests_properties(gameplay.local_original_training_mission PROPERTIES
-        TIMEOUT 120 LABELS "gameplay;maps;rules;graphics;assets;platform;integration;local"
+        TIMEOUT 40 LABELS "gameplay;maps;rules;graphics;assets;platform;integration;local"
         WORKING_DIRECTORY "${CHI_ORIGINAL_ASSET_DIRECTORY}"
         ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
       set_tests_properties(graphics.local_original_animation_scenes PROPERTIES
@@ -924,6 +924,7 @@ if(CHI_BUILD_SDL)
           WORKING_DIRECTORY "${CHI_ORIGINAL_ASSET_DIRECTORY}"
           ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy;CHI_TEST_SLOW_OPERATOR=1")
       endforeach()
+      set_tests_properties(gameplay.local_slow_operator_training-mission PROPERTIES TIMEOUT 40)
       set_tests_properties(gameplay.local_original_ammunition_services PROPERTIES
         TIMEOUT 15 LABELS "gameplay;rules;graphics;assets;platform;integration;local"
         WORKING_DIRECTORY "${CHI_ORIGINAL_ASSET_DIRECTORY}"
