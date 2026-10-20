@@ -110,6 +110,9 @@ The old `Run.ps1` name remains as a compatibility wrapper.
 
 ## Minimal runtime package
 
+Future GitHub releases build and test both platforms before attaching downloads.
+See [automated releases](docs/RELEASING.md) for publishing, dry runs and retries.
+
 Create a distributable runtime shell with:
 
 ```powershell
